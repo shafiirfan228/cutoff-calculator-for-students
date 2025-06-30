@@ -1,0 +1,532 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineering Cutoff Calculator</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96c93d);
+            background-size: 400% 400%;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 3D Background Effect with Stationery */
+        .background-3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            perspective: 1000px;
+        }
+
+        .cube {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            transform-style: preserve-3d;
+            transform: rotateX(45deg) rotateY(45deg);
+            border-radius: 10px;
+        }
+
+        .stationery {
+            position: absolute;
+            color: rgba(0, 0, 0, 0.2);
+            font-size: clamp(1.5rem, 3vw, 2rem);
+        }
+
+        .cube:nth-child(1) { top: 10%; left: 10%; transform: translateZ(-200px); }
+        .cube:nth-child(2) { top: 20%; left: 70%; transform: translateZ(-150px); }
+        .cube:nth-child(3) { top: 50%; left: 30%; transform: translateZ(-100px); }
+        .cube:nth-child(4) { top: 70%; left: 80%; transform: translateZ(-180px); }
+        .cube:nth-child(5) { top: 30%; left: 50%; transform: translateZ(-120px); }
+
+        .stationery:nth-child(6) { top: 5%; left: 15%; font-size: 1.8rem; }
+        .stationery:nth-child(7) { top: 15%; left: 65%; font-size: 2rem; }
+        .stationery:nth-child(8) { top: 25%; left: 25%; font-size: 1.6rem; }
+        .stationery:nth-child(9) { top: 35%; left: 75%; font-size: 2.2rem; }
+        .stationery:nth-child(10) { top: 45%; left: 20%; font-size: 1.7rem; }
+        .stationery:nth-child(11) { top: 55%; left: 85%; font-size: 1.9rem; }
+        .stationery:nth-child(12) { top: 65%; left: 35%; font-size: 2rem; }
+        .stationery:nth-child(13) { top: 75%; left: 60%; font-size: 1.8rem; }
+        .stationery:nth-child(14) { top: 85%; left: 10%; font-size: 2.1rem; }
+        .stationery:nth-child(15) { top: 10%; left: 80%; font-size: 1.6rem; }
+        .stationery:nth-child(16) { top: 20%; left: 30%; font-size: 1.9rem; }
+        .stationery:nth-child(17) { top: 30%; left: 90%; font-size: 2rem; }
+        .stationery:nth-child(18) { top: 40%; left: 40%; font-size: 1.7rem; }
+        .stationery:nth-child(19) { top: 50%; left: 70%; font-size: 1.8rem; }
+        .stationery:nth-child(20) { top: 60%; left: 15%; font-size: 2rem; }
+        .stationery:nth-child(21) { top: 70%; left: 50%; font-size: 1.6rem; }
+        .stationery:nth-child(22) { top: 80%; left: 25%; font-size: 1.9rem; }
+        .stationery:nth-child(23) { top: 15%; left: 45%; font-size: 2.1rem; }
+        .stationery:nth-child(24) { top: 25%; left: 85%; font-size: 1.7rem; }
+        .stationery:nth-child(25) { top: 35%; left: 55%; font-size: 1.8rem; }
+        .stationery:nth-child(26) { top: 45%; left: 95%; font-size: 2rem; }
+
+        /* Input page styling */
+        #input-page {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            max-width: 90%;
+            width: 100%;
+            max-width: 550px;
+            transform: translateZ(20px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #1e3c72;
+            margin-bottom: 1.5rem;
+            font-size: clamp(1.8rem, 5vw, 2.2rem);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.4rem;
+            color: #2c3e50;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #e74c3c;
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.3);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.9rem;
+            background: linear-gradient(to right, #e74c3c, #f1c40f);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            font-weight: 600;
+            cursor: prize;
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Result page styling */
+        #result-page {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+            background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #45b7d1, #96c93d);
+            background-size: 400% 400%;
+        }
+
+        .result-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            max-width: 90%;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            transform: translateZ(20px);
+        }
+
+        .result-container h2 {
+            color: #e74c3c;
+            font-size: clamp(2rem, 6vw, 2.5rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        #result {
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            color: #2c3e50;
+            font-weight: 600;
+            margin: 1rem 0;
+            padding: 0.8rem;
+            background: linear-gradient(45deg, #e74c3c, #f1c40f);
+            border: 3px solid #3498db;
+            border-radius: 10px;
+            color: white;
+            display: inline-block;
+        }
+
+        #result strong {
+            font-size: clamp(1.8rem, 5vw, 2.2rem);
+            font-weight: 700;
+        }
+
+        .all-the-best {
+            color: #1e3c72;
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
+            font-weight: 500;
+        }
+
+        /* College list styling */
+        .college-list {
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        .college-list h3 {
+            color: #1e3c72;
+            font-size: clamp(1.2rem, 3vw, 1.4rem);
+            margin-bottom: 1rem;
+        }
+
+        .college-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .college-list li {
+            margin-bottom: 1rem;
+            font-size: clamp(0.9rem, 2.5vw, 1rem);
+            color: #2c3e50;
+        }
+
+        .college-list li strong {
+            color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .container, .result-container {
+                padding: 1.5rem;
+            }
+
+            .stationery {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container, .result-container {
+                padding: 1rem;
+            }
+
+            h1, .result-container h2 {
+                letter-spacing: 1px;
+            }
+
+            button {
+                padding: 0.7rem;
+            }
+
+            .stationery {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-3d">
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="cube"></div>
+        <div class="stationery">✏️</div>
+        <div class="stationery">📏</div>
+        <div class="stationery">📚</div>
+        <div class="stationery">🖌️</div>
+        <div class="stationery">📝</div>
+        <div class="stationery">📖</div>
+        <div class="stationery">✂️</div>
+        <div class="stationery">📎</div>
+        <div class="stationery">🖋️</div>
+        <div class="stationery">📋</div>
+        <div class="stationery">📌</div>
+        <div class="stationery">📐</div>
+        <div class="stationery">🖍️</div>
+        <div class="stationery">📒</div>
+        <div class="stationery">🖇️</div>
+        <div class="stationery">📕</div>
+        <div class="stationery">📗</div>
+        <div class="stationery">📘</div>
+        <div class="stationery">📙</div>
+        <div class="stationery">📔</div>
+        <div class="stationery">🖌️</div>
+    </div>
+
+    <!-- Input Page -->
+    <div id="input-page">
+        <div class="container">
+            <h1>Cutoff Calculator</h1>
+            <div class="form-group">
+                <label for="maths">Maths (out of 100)</label>
+                <input type="number" id="maths" placeholder="Maths marks" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="physics">Physics (out of 100)</label>
+                <input type="number" id="physics" placeholder="Physics marks" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="chemistry">Chemistry (out of 100)</label>
+                <input type="number" id="chemistry" placeholder="Chemistry marks" min="0" max="100">
+            </div>
+            <div class="form-group">
+                <label for="course">Select Course</label>
+                <select id="course">
+                    <option value="Civil Engineering">Civil Engineering</option>
+                    <option value="Mechanical Engineering">Mechanical Engineering</option>
+                    <option value="Computer Science and Engineering">Computer Science and Engineering</option>
+                    <option value="Electronics and Communication Engineering">Electronics and Communication Engineering</option>
+                    <option value="Electrical and Electronics Engineering">Electrical and Electronics Engineering</option>
+                    <option value="Information Technology">Information Technology</option>
+                    <option value="Aeronautical Engineering">Aeronautical Engineering</option>
+                    <option value="Automobile Engineering">Automobile Engineering</option>
+                    <option value="Biomedical Engineering">Biomedical Engineering</option>
+                    <option value="Biotechnology">Biotechnology</option>
+                    <option value="Chemical Engineering">Chemical Engineering</option>
+                    <option value="Artificial Intelligence and Data Science">Artificial Intelligence and Data Science</option>
+                    <option value="Mechatronics">Mechatronics</option>
+                    <option value="Aerospace Engineering">Aerospace Engineering</option>
+                    <option value="Marine Engineering">Marine Engineering</option>
+                </select>
+            </div>
+            <button onclick="calculateCutoff()">Calculate</button>
+            <div id="error"></div>
+        </div>
+    </div>
+
+    <!-- Result Page -->
+    <div id="result-page">
+        <div class="result-container">
+            <h2>Congratulations!</h2>
+            <div id="result"></div>
+            <div class="all-the-best">All the Best!</div>
+            <div class="college-list" id="college-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // College data with expected TNEA 2025 cutoffs
+        const colleges = {
+            "Civil Engineering": [
+                { name: "Anna University, Guindy", cutoff: "150–160", details: "Chennai, NAAC A++, NIRF #12, excellent placements (₹6.5 LPA avg.)." },
+                { name: "PSG College of Technology", cutoff: "140–150", details: "Coimbatore, NAAC A++, 94% placement rate, industry-focused curriculum." },
+                { name: "SSN College of Engineering", cutoff: "145–155", details: "Chennai, NAAC A++, strong placements (₹42 LPA highest)." },
+                { name: "Coimbatore Institute of Technology", cutoff: "140–150", details: "Coimbatore, NAAC A++, research-oriented, good placements." },
+                { name: "Government College of Technology", cutoff: "140–150", details: "Coimbatore, NAAC A++, affordable, strong alumni network." }
+            ],
+            "Mechanical Engineering": [
+                { name: "Anna University, Guindy", cutoff: "155–165", details: "Chennai, NAAC A++, NIRF #12, excellent placements." },
+                { name: "PSG College of Technology", cutoff: "145–155", details: "Coimbatore, NAAC A++, strong industry ties." },
+                { name: "SSN College of Engineering", cutoff: "150–160", details: "Chennai, NAAC A++, high placement rates." },
+                { name: "Coimbatore Institute of Technology", cutoff: "145–155", details: "Coimbatore, NAAC A++, research-focused." },
+                { name: "Government College of Technology", cutoff: "140–150", details: "Coimbatore, NAAC A++, affordable education." }
+            ],
+            "Computer Science and Engineering": [
+                { name: "Anna University, Guindy", cutoff: "195–200", details: "Chennai, NAAC A++, top placements (₹6.5 LPA avg.)." },
+                { name: "PSG College of Technology", cutoff: "190–195", details: "Coimbatore, NAAC A++, 94% placement rate." },
+                { name: "SSN College of Engineering", cutoff: "190–195", details: "Chennai, NAAC A++, ₹42 LPA highest CTC." },
+                { name: "Coimbatore Institute of Technology", cutoff: "185–190", details: "Coimbatore, NAAC A++, strong placements." },
+                { name: "Government College of Technology", cutoff: "180–185", details: "Coimbatore, NAAC A++, affordable fees." }
+            ],
+            "Electronics and Communication Engineering": [
+                { name: "Anna University, Guindy", cutoff: "190–195", details: "Chennai, NAAC A++, excellent placements." },
+                { name: "PSG College of Technology", cutoff: "185–190", details: "Coimbatore, NAAC A++, industry-focused." },
+                { name: "SSN College of Engineering", cutoff: "185–190", details: "Chennai, NAAC A++, strong placements." },
+                { name: "Coimbatore Institute of Technology", cutoff: "180–185", details: "Coimbatore, NAAC A++, research-oriented." },
+                { name: "Government College of Technology", cutoff: "175–180", details: "Coimbatore, NAAC A++, affordable." }
+            ],
+            "Electrical and Electronics Engineering": [
+                { name: "Anna University, Guindy", cutoff: "160–170", details: "Chennai, NAAC A++, top placements." },
+                { name: "PSG College of Technology", cutoff: "150–160", details: "Coimbatore, NAAC A++, strong industry ties." },
+                { name: "SSN College of Engineering", cutoff: "155–165", details: "Chennai, NAAC A++, high placement rates." },
+                { name: "Coimbatore Institute of Technology", cutoff: "150–160", details: "Coimbatore, NAAC A++, good placements." },
+                { name: "Government College of Technology", cutoff: "145–155", details: "Coimbatore, NAAC A++, affordable education." }
+            ],
+            "Information Technology": [
+                { name: "Anna University, Guindy", cutoff: "190–195", details: "Chennai, NAAC A++, excellent placements." },
+                { name: "PSG College of Technology", cutoff: "185–190", details: "Coimbatore, NAAC A++, 94% placement rate." },
+                { name: "SSN College of Engineering", cutoff: "185–190", details: "Chennai, NAAC A++, ₹42 LPA highest CTC." },
+                { name: "Coimbatore Institute of Technology", cutoff: "180–185", details: "Coimbatore, NAAC A++, strong placements." },
+                { name: "Government College of Technology", cutoff: "175–180", details: "Coimbatore, NAAC A++, affordable fees." }
+            ],
+            "Aeronautical Engineering": [
+                { name: "Anna University, Guindy", cutoff: "145–155", details: "Chennai, NAAC A++, top placements." },
+                { name: "Hindustan Institute of Technology and Science", cutoff: "135–145", details: "Chennai, strong industry focus, good placements." },
+                { name: "Rajalakshmi Engineering College", cutoff: "130–140", details: "Chennai, good infrastructure, decent placements." }
+            ],
+            "Automobile Engineering": [
+                { name: "Anna University, Guindy", cutoff: "140–150", details: "Chennai, NAAC A++, excellent placements." },
+                { name: "PSG College of Technology", cutoff: "135–145", details: "Coimbatore, NAAC A++, industry-oriented." },
+                { name: "Sri Venkateswara College of Engineering", cutoff: "130–140", details: "Chennai, good facilities, decent placements." }
+            ],
+            "Biomedical Engineering": [
+                { name: "Sri Krishna College of Technology", cutoff: "135–145", details: "Coimbatore, NIRF 77, good placements." },
+                { name: "Sri Sairam Institute of Technology", cutoff: "130–140", details: "Chennai, modern infrastructure, decent placements." },
+                { name: "SSN College of Engineering", cutoff: "140–150", details: "Chennai, NAAC A++, strong placements." }
+            ],
+            "Biotechnology": [
+                { name: "Anna University, Guindy", cutoff: "145–155", details: "Chennai, NAAC A++, excellent placements." },
+                { name: "PSG College of Technology", cutoff: "140–150", details: "Coimbatore, NAAC A++, strong industry ties." },
+                { name: "SSN College of Engineering", cutoff: "140–150", details: "Chennai, NAAC A++, high placement rates." }
+            ],
+            "Chemical Engineering": [
+                { name: "Anna University, Guindy", cutoff: "145–155", details: "Chennai, NAAC A++, top placements." },
+                { name: "Coimbatore Institute of Technology", cutoff: "135–145", details: "Coimbatore, NAAC A++, research-oriented." },
+                { name: "St. Joseph’s College of Engineering", cutoff: "130–140", details: "Chennai, good infrastructure, decent placements." }
+            ],
+            "Artificial Intelligence and Data Science": [
+                { name: "Anna University, Guindy", cutoff: "190–195", details: "Chennai, NAAC A++, excellent placements." },
+                { name: "PSG College of Technology", cutoff: "185–190", details: "Coimbatore, NAAC A++, 94% placement rate." },
+                { name: "SSN College of Engineering", cutoff: "185–190", details: "Chennai, NAAC A++, ₹42 LPA highest CTC." }
+            ],
+            "Mechatronics": [
+                { name: "SRM Institute of Science and Technology", cutoff: "140–150", details: "Chennai, NIRF #13, strong placements." },
+                { name: "PSG College of Technology", cutoff: "135–145", details: "Coimbatore, NAAC A++, industry-focused." },
+                { name: "Kumaraguru College of Technology", cutoff: "130–140", details: "Coimbatore, good infrastructure, decent placements." }
+            ],
+            "Aerospace Engineering": [
+                { name: "Anna University, Guindy", cutoff: "145–155", details: "Chennai, NAAC A++, excellent placements." },
+                { name: "Hindustan Institute of Technology and Science", cutoff: "135–145", details: "Chennai, strong industry focus, good placements." },
+                { name: "Rajalakshmi Engineering College", cutoff: "130–140", details: "Chennai, good infrastructure, decent placements." }
+            ],
+            "Marine Engineering": [
+                { name: "AMET University", cutoff: "130–140", details: "Chennai, specialized maritime programs, good placements." },
+                { name: "Vels Institute of Science, Technology and Advanced Studies", cutoff: "125–135", details: "Chennai, ranked #5 private by Times of India, decent placements." },
+                { name: "Sri Venkateswara College of Engineering", cutoff: "125–135", details: "Chennai, good facilities, decent placements." }
+            ]
+        };
+
+        function calculateCutoff() {
+            const maths = parseFloat(document.getElementById('maths').value);
+            const physics = parseFloat(document.getElementById('physics').value);
+            const chemistry = parseFloat(document.getElementById('chemistry').value);
+            const course = document.getElementById('course').value;
+            const errorDiv = document.getElementById('error');
+            const inputPage = document.getElementById('input-page');
+            const resultPage = document.getElementById('result-page');
+            const resultDiv = document.getElementById('result');
+            const collegeListDiv = document.getElementById('college-list');
+
+            // Validate inputs
+            if (isNaN(maths) || isNaN(physics) || isNaN(chemistry)) {
+                errorDiv.innerHTML = '<span class="error">Enter all marks</span>';
+                return;
+            }
+            if (maths < 0 || maths > 100 || physics < 0 || physics > 100 || chemistry < 0 || chemistry > 100) {
+                errorDiv.innerHTML = '<span class="error">Marks must be 0-100</span>';
+                return;
+            }
+            if (!course) {
+                errorDiv.innerHTML = '<span class="error">Please select a course</span>';
+                return;
+            }
+
+            // Calculate cutoff: Maths + (Physics + Chemistry) / 2
+            const cutoff = maths + (physics + chemistry) / 2;
+
+            // Display result
+            resultDiv.innerHTML = `Cutoff for ${course}: <strong>${cutoff.toFixed(2)}</strong>/200`;
+
+            // Display college list for selected course
+            collegeListDiv.innerHTML = `
+                <h3>Top Colleges for ${course} (TNEA 2025)</h3>
+                <ul>
+                    ${colleges[course].map(college => `
+                        <li><strong>${college.name}</strong>: Expected Cutoff ${college.cutoff}/200. ${college.details}</li>
+                    `).join('')}
+                </ul>
+            `;
+
+            // Switch to result page
+            inputPage.style.display = 'none';
+            resultPage.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
